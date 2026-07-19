@@ -74,14 +74,26 @@ ALTER TABLE setter_activities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE revenue_goals ENABLE ROW LEVEL SECURITY;
 
 -- Allow anon access
+DROP POLICY IF EXISTS "anon_all_leads" ON leads;
+DROP POLICY IF EXISTS "anon_all_setter_activities" ON setter_activities;
+DROP POLICY IF EXISTS "anon_all_revenue_goals" ON revenue_goals;
 CREATE POLICY "anon_all_leads" ON leads FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "anon_all_setter_activities" ON setter_activities FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "anon_all_revenue_goals" ON revenue_goals FOR ALL TO anon USING (true) WITH CHECK (true);
 
--- Enable realtime
-ALTER PUBLICATION supabase_realtime ADD TABLE leads;
-ALTER PUBLICATION supabase_realtime ADD TABLE setter_activities;
-ALTER PUBLICATION supabase_realtime ADD TABLE revenue_goals;
+-- Enable realtime (use DO block to handle already-added gracefully)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'leads') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE leads;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'setter_activities') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE setter_activities;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'revenue_goals') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE revenue_goals;
+  END IF;
+END $$;
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
